@@ -1,54 +1,136 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 
-const SIZE = 4 // 4x4 grid
+const calculateBoardSize = () => {
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const padding = 32
+    const maxSize = 600
 
-function GameBoard() {
+    let size = Math.min(vw - padding, vh - 200, maxSize)
+    return Math.max(size, 280)
+}
+
+export default function Game2048() {
     const [grid, setGrid] = useState([])
     const [score, setScore] = useState(0)
     const [gameOver, setGameOver] = useState(false)
+    const [boardSize, setBoardSize] = useState(calculateBoardSize())
+    const touchStart = useRef({ x: 0, y: 0 })
 
-    // Initialize the grid with zeros and two random tiles
     useEffect(() => {
-        initializeGame()
+        initGame()
+        const handleResize = () => setBoardSize(calculateBoardSize())
+        window.addEventListener("resize", handleResize)
+        return () => window.removeEventListener("resize", handleResize)
     }, [])
 
-    const initializeGame = () => {
-        const newGrid = Array(SIZE)
+    const initGame = () => {
+        const newGrid = Array(4)
             .fill()
-            .map(() => Array(SIZE).fill(0))
-        addRandomTile(newGrid)
-        addRandomTile(newGrid)
+            .map(() => Array(4).fill(0))
+        addNewTile(newGrid)
+        addNewTile(newGrid)
         setGrid(newGrid)
         setScore(0)
         setGameOver(false)
     }
 
-    const addRandomTile = (currentGrid) => {
-        const emptyCells = []
-        currentGrid.forEach((row, r) =>
-            row.forEach((cell, c) => {
-                if (cell === 0) emptyCells.push({ r, c })
+    const addNewTile = (currentGrid) => {
+        const emptyTiles = []
+        currentGrid.forEach((row, i) => {
+            row.forEach((cell, j) => {
+                if (cell === 0) emptyTiles.push([i, j])
             })
-        )
+        })
 
-        if (emptyCells.length) {
-            const { r, c } =
-                emptyCells[Math.floor(Math.random() * emptyCells.length)]
-            currentGrid[r][c] = Math.random() > 0.1 ? 2 : 4
+        if (emptyTiles.length) {
+            const [i, j] =
+                emptyTiles[Math.floor(Math.random() * emptyTiles.length)]
+            currentGrid[i][j] = Math.random() < 0.9 ? 2 : 4
         }
     }
 
-    const checkGameOver = (currentGrid) => {
-        // Check for any empty cells
-        for (let i = 0; i < SIZE; i++) {
-            for (let j = 0; j < SIZE; j++) {
+    const moveGrid = (direction) => {
+        if (gameOver) return
+
+        const [newGrid, hasChanged, points] = calculateMove(direction)
+
+        if (hasChanged) {
+            addNewTile(newGrid)
+            setGrid(newGrid)
+            setScore((prev) => prev + points)
+
+            if (isGameOver(newGrid)) {
+                setGameOver(true)
+            }
+        }
+    }
+
+    const calculateMove = (direction) => {
+        const newGrid = JSON.parse(JSON.stringify(grid))
+        let hasChanged = false
+        let points = 0
+
+        const move = (line) => {
+            const nonZeros = line.filter((x) => x !== 0)
+            const merged = []
+
+            for (let i = 0; i < nonZeros.length; i++) {
+                if (
+                    i + 1 < nonZeros.length &&
+                    nonZeros[i] === nonZeros[i + 1]
+                ) {
+                    merged.push(nonZeros[i] * 2)
+                    points += nonZeros[i] * 2
+                    i++
+                } else {
+                    merged.push(nonZeros[i])
+                }
+            }
+
+            const result = [
+                ...merged,
+                ...Array(line.length - merged.length).fill(0),
+            ]
+            if (JSON.stringify(line) !== JSON.stringify(result))
+                hasChanged = true
+            return result
+        }
+
+        if (direction === "left" || direction === "right") {
+            for (let i = 0; i < 4; i++) {
+                const row = newGrid[i]
+                const movedRow = move(
+                    direction === "left" ? row : row.reverse()
+                )
+                newGrid[i] =
+                    direction === "left" ? movedRow : movedRow.reverse()
+            }
+        } else {
+            for (let j = 0; j < 4; j++) {
+                const column = newGrid.map((row) => row[j])
+                const movedColumn = move(
+                    direction === "up" ? column : column.reverse()
+                )
+                for (let i = 0; i < 4; i++) {
+                    newGrid[i][j] =
+                        direction === "up" ? movedColumn[i] : movedColumn[3 - i]
+                }
+            }
+        }
+
+        return [newGrid, hasChanged, points]
+    }
+
+    const isGameOver = (currentGrid) => {
+        for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 4; j++) {
                 if (currentGrid[i][j] === 0) return false
             }
         }
 
-        // Check for possible merges horizontally and vertically
-        for (let i = 0; i < SIZE; i++) {
-            for (let j = 0; j < SIZE - 1; j++) {
+        for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 3; j++) {
                 if (currentGrid[i][j] === currentGrid[i][j + 1]) return false
                 if (currentGrid[j][i] === currentGrid[j + 1][i]) return false
             }
@@ -57,113 +139,49 @@ function GameBoard() {
         return true
     }
 
-    const handleKeyDown = (e) => {
-        if (gameOver) return
-
-        let moved = false
-        const newGrid = JSON.parse(JSON.stringify(grid)) // Deep copy
-
-        switch (e.key) {
-            case "ArrowUp":
-                moved = moveTiles("up", newGrid)
-                break
-            case "ArrowDown":
-                moved = moveTiles("down", newGrid)
-                break
-            case "ArrowLeft":
-                moved = moveTiles("left", newGrid)
-                break
-            case "ArrowRight":
-                moved = moveTiles("right", newGrid)
-                break
-            default:
-                return
-        }
-
-        if (moved) {
-            addRandomTile(newGrid)
-            setGrid(newGrid)
-
-            if (checkGameOver(newGrid)) {
-                setGameOver(true)
-            }
-        }
-    }
-
-    const mergeTiles = (row) => {
-        let newScore = 0
-        const newRow = row.filter((val) => val !== 0)
-
-        for (let i = 0; i < newRow.length - 1; i++) {
-            if (newRow[i] === newRow[i + 1]) {
-                newRow[i] *= 2
-                newScore += newRow[i]
-                newRow[i + 1] = 0
-            }
-        }
-
-        const filteredRow = newRow.filter((val) => val !== 0)
-        const paddedRow = [
-            ...filteredRow,
-            ...Array(SIZE - filteredRow.length).fill(0),
-        ]
-
-        return { row: paddedRow, score: newScore }
-    }
-
-    const moveTiles = (direction, currentGrid) => {
-        let moved = false
-        let additionalScore = 0
-
-        const processSingleRow = (row) => {
-            const { row: newRow, score } = mergeTiles(row)
-            additionalScore += score
-
-            if (JSON.stringify(row) !== JSON.stringify(newRow)) {
-                moved = true
-            }
-            return newRow
-        }
-
-        if (direction === "left") {
-            for (let i = 0; i < SIZE; i++) {
-                currentGrid[i] = processSingleRow(currentGrid[i])
-            }
-        } else if (direction === "right") {
-            for (let i = 0; i < SIZE; i++) {
-                currentGrid[i] = processSingleRow(
-                    [...currentGrid[i]].reverse()
-                ).reverse()
-            }
-        } else if (direction === "up") {
-            for (let j = 0; j < SIZE; j++) {
-                const column = currentGrid.map((row) => row[j])
-                const newColumn = processSingleRow(column)
-                for (let i = 0; i < SIZE; i++) {
-                    currentGrid[i][j] = newColumn[i]
-                }
-            }
-        } else if (direction === "down") {
-            for (let j = 0; j < SIZE; j++) {
-                const column = currentGrid.map((row) => row[j]).reverse()
-                const newColumn = processSingleRow(column).reverse()
-                for (let i = 0; i < SIZE; i++) {
-                    currentGrid[i][j] = newColumn[i]
-                }
-            }
-        }
-
-        if (moved) {
-            setScore((prevScore) => prevScore + additionalScore)
-        }
-
-        return moved
-    }
-
     useEffect(() => {
+        const handleKeyDown = (e) => {
+            const keyToDirection = {
+                ArrowUp: "up",
+                ArrowDown: "down",
+                ArrowLeft: "left",
+                ArrowRight: "right",
+            }
+            if (keyToDirection[e.key]) {
+                e.preventDefault()
+                moveGrid(keyToDirection[e.key])
+            }
+        }
+
         window.addEventListener("keydown", handleKeyDown)
         return () => window.removeEventListener("keydown", handleKeyDown)
     }, [grid, gameOver])
+
+    const handleTouchStart = (e) => {
+        touchStart.current = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY,
+        }
+    }
+
+    const handleTouchEnd = (e) => {
+        const deltaX = e.changedTouches[0].clientX - touchStart.current.x
+        const deltaY = e.changedTouches[0].clientY - touchStart.current.y
+        const minSwipeDistance = 30
+
+        if (
+            Math.abs(deltaX) < minSwipeDistance &&
+            Math.abs(deltaY) < minSwipeDistance
+        ) {
+            return
+        }
+
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            moveGrid(deltaX > 0 ? "right" : "left")
+        } else {
+            moveGrid(deltaY > 0 ? "down" : "up")
+        }
+    }
 
     const getTileColor = (value) => {
         const colors = {
@@ -183,42 +201,70 @@ function GameBoard() {
         return colors[value] || "bg-yellow-800 text-white"
     }
 
-    return (
-        <div className="flex flex-col items-center gap-4 p-4">
-            <div className="flex justify-between w-full max-w-md mb-4">
-                <div className="text-2xl font-bold">Score: {score}</div>
-                <button
-                    onClick={initializeGame}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                    New Game
-                </button>
-            </div>
+    const getTileStyle = (value) => {
+        return {
+            width: "100%",
+            height: "100%",
+            fontSize: `${boardSize / (value > 100 ? 15 : 12)}px`,
+        }
+    }
 
-            <div className="bg-gray-300 p-4 rounded-lg w-[400px] h-[400px]">
-                <div className="grid grid-rows-4 grid-cols-4 gap-2 h-full">
-                    {grid.map((row, i) =>
-                        row.map((value, j) => (
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+            <div className="w-full max-w-xl">
+                <div className="flex justify-between items-center mb-4">
+                    <div className="text-3xl font-bold text-gray-800">2048</div>
+                    <div className="flex gap-4 items-center">
+                        <div className="min-w-[75px] relative text-tan flex min-w-0 grow basis-0 transform-gpu items-center justify-between gap-2 rounded-xl px-4 py-2 text-sm font-bold sm:h-[52px] sm:flex-auto sm:flex-col sm:justify-center sm:gap-0 sm:py-0 sm:text-xl bg-sand border border-gray-300">
+                            <span className="min-w-0 shrink-[500] grow basis-[20px] truncate text-xs font-medium uppercase sm:flex-initial">
+                                Score
+                            </span>
+                            <span className="invisible hidden h-0 sm:block">
+                                444
+                            </span>
+                            <span className="shrink-1 truncate">{score}</span>
+                        </div>
+
+                        <button
+                            onClick={initGame}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-xl border border-blue-300 hover:bg-blue-600 hover:border-blue-400 transition-colors font-bold text-sm sm:text-xl"
+                        >
+                            New Game
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    className="bg-gray-300 p-3 rounded-lg"
+                    style={{ width: boardSize, height: boardSize }}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                >
+                    <div className="grid grid-cols-4 grid-rows-4 gap-3 h-full">
+                        {grid.flat().map((value, index) => (
                             <div
-                                key={`${i}-${j}`}
-                                className={`flex items-center justify-center font-bold text-2xl rounded transition-colors duration-100 ${getTileColor(
+                                key={index}
+                                className={`flex items-center justify-center font-bold rounded transition-colors duration-100 ${getTileColor(
                                     value
                                 )}`}
+                                style={getTileStyle(value)}
                             >
                                 {value !== 0 ? value : ""}
                             </div>
-                        ))
-                    )}
+                        ))}
+                    </div>
+                </div>
+
+                {gameOver && (
+                    <div className="text-xl font-bold text-red-500 text-center mt-4">
+                        Game Over! Final Score: {score}
+                    </div>
+                )}
+
+                <div className="text-gray-600 text-center mt-4">
+                    Use arrow keys or swipe to move tiles
                 </div>
             </div>
-
-            {gameOver && (
-                <div className="text-xl font-bold text-red-500 mt-4">
-                    Game Over! Final Score: {score}
-                </div>
-            )}
         </div>
     )
 }
-
-export default GameBoard
