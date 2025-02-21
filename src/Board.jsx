@@ -8,7 +8,7 @@ const calculateBoardSize = () => {
     const padding = 32;
     const maxSize = 600;
 
-    let size = Math.min(vw - padding, vh - 200, maxSize);
+    let size = Math.min(vw - padding, vh - 300, maxSize);
     return Math.max(size, 280);
 };
 
@@ -208,7 +208,7 @@ export default function Game2048() {
         return {
             width: '100%',
             height: '100%',
-            fontSize: `${boardSize / (value > 100 ? 15 : 12)}px`,
+            fontSize: `${boardSize / (value > 100 ? 18 : 14)}px`,
         };
     };
 
@@ -274,7 +274,7 @@ export default function Game2048() {
                 if (bestMove) {
                     moveGrid(bestMove);
                 }
-            }, 30);
+            }, 3);
         } else {
             if (aiIntervalRef.current) {
                 clearInterval(aiIntervalRef.current);
@@ -302,26 +302,27 @@ export default function Game2048() {
     };
 
     const LeaderboardModal = () => (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
-                <div className="max-h-96 overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold">Leaderboard</h2>
+                    <button onClick={() => setShowLeaderboard(false)} className="text-gray-500 hover:text-gray-700">
+                        ✕
+                    </button>
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto">
                     {leaderboard.map((entry, index) => (
-                        <div key={entry.id} className="flex justify-between items-center py-2 border-b">
-                            <div className="flex items-center">
-                                <span className="font-bold mr-2">#{index + 1}</span>
-                                <span>{entry.userName}</span>
+                        <div key={entry.id} className="flex justify-between items-center py-3 border-b">
+                            <div className="flex items-center gap-3">
+                                <span className="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-full font-bold text-blue-600">
+                                    {index + 1}
+                                </span>
+                                <span className="font-medium">{entry.userName}</span>
                             </div>
-                            <span className="font-bold">{entry.score}</span>
+                            <span className="font-bold text-lg">{entry.score}</span>
                         </div>
                     ))}
                 </div>
-                <button
-                    onClick={() => setShowLeaderboard(false)}
-                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 w-full"
-                >
-                    Close
-                </button>
             </div>
         </div>
     );
@@ -329,22 +330,27 @@ export default function Game2048() {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
             <div className="w-full max-w-xl">
-                <div className="flex justify-between items-center mb-4">
-                    <div className="text-3xl font-bold text-gray-800">2048</div>
-                    <div className="flex gap-4 items-center">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+                    <div className="text-4xl font-bold text-gray-800">2048</div>
+                    <div className="flex flex-wrap justify-center gap-2 items-center">
                         {user ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl shadow-sm">
                                 <img src={user.photoURL} alt={user.displayName} className="w-8 h-8 rounded-full" />
-                                <button onClick={signOutUser} className="px-3 py-1 bg-red-500 text-white rounded-xl text-sm">
+                                <span className="font-medium hidden sm:block">{user.displayName}</span>
+                                <button
+                                    onClick={signOutUser}
+                                    className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600"
+                                >
                                     Sign Out
                                 </button>
                             </div>
                         ) : (
                             <button
                                 onClick={signInWithGoogle}
-                                className="px-4 py-2 bg-white text-gray-700 rounded-xl border border-gray-300 hover:bg-gray-50"
+                                className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-xl border border-gray-300 hover:bg-gray-50"
                             >
-                                Sign in with Google
+                                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                                Sign in
                             </button>
                         )}
 
@@ -352,39 +358,36 @@ export default function Game2048() {
                             onClick={() => setShowLeaderboard(true)}
                             className="px-4 py-2 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600"
                         >
-                            Leaderboard
-                        </button>
-
-                        <div className="min-w-[75px] relative text-tan flex min-w-0 grow basis-0 transform-gpu items-center justify-between gap-2 rounded-xl px-4 py-2 text-sm font-bold sm:h-[52px] sm:flex-auto sm:flex-col sm:justify-center sm:gap-0 sm:py-0 sm:text-xl bg-sand border border-gray-300">
-                            <span className="min-w-0 shrink-[500] grow basis-[20px] truncate text-xs font-medium uppercase sm:flex-initial">
-                                Score
-                            </span>
-                            <span className="invisible hidden h-0 sm:block">444</span>
-                            <span className="shrink-1 truncate">{score}</span>
-                        </div>
-
-                        <button
-                            onClick={toggleAI}
-                            className={`px-4 py-2 ${
-                                isAIPlaying
-                                    ? 'bg-green-500 hover:bg-green-600 border-green-300'
-                                    : 'bg-purple-500 hover:bg-purple-600 border-purple-300'
-                            } text-white rounded-xl border hover:border-opacity-40 transition-colors font-bold text-sm sm:text-xl`}
-                        >
-                            {isAIPlaying ? 'Stop AI' : 'Start AI'}
-                        </button>
-
-                        <button
-                            onClick={initGame}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-xl border border-blue-300 hover:bg-blue-600 hover:border-blue-400 transition-colors font-bold text-sm sm:text-xl"
-                        >
-                            New Game
+                            🏆 Leaderboard
                         </button>
                     </div>
                 </div>
 
+                <div className="flex flex-wrap justify-center gap-4 mb-6">
+                    <div className="min-w-[120px] bg-white rounded-xl p-4 text-center shadow-sm">
+                        <div className="text-sm text-gray-500 mb-1">SCORE</div>
+                        <div className="text-2xl font-bold">{score}</div>
+                    </div>
+
+                    <button
+                        onClick={toggleAI}
+                        className={`px-6 py-3 ${
+                            isAIPlaying ? 'bg-green-500 hover:bg-green-600' : 'bg-purple-500 hover:bg-purple-600'
+                        } text-white rounded-xl shadow-sm font-bold`}
+                    >
+                        {isAIPlaying ? '🤖 Stop AI' : '🤖 Start AI'}
+                    </button>
+
+                    <button
+                        onClick={initGame}
+                        className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 shadow-sm font-bold"
+                    >
+                        🔄 New Game
+                    </button>
+                </div>
+
                 <div
-                    className="bg-gray-300 p-3 rounded-lg"
+                    className="bg-gray-300 p-3 rounded-lg shadow-lg mx-auto"
                     style={{ width: boardSize, height: boardSize }}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
@@ -392,8 +395,8 @@ export default function Game2048() {
                     <div className="grid grid-cols-4 grid-rows-4 gap-3 h-full">
                         {grid.flat().map((value, index) => (
                             <div
-                                key={index}
-                                className={`flex items-center justify-center font-bold rounded transition-colors duration-100 ${getTileColor(
+                                key={`${index}-${value}`}
+                                className={`flex items-center justify-center font-bold rounded shadow-inner ${getTileColor(
                                     value
                                 )}`}
                                 style={getTileStyle(value)}
@@ -407,15 +410,17 @@ export default function Game2048() {
                 {showLeaderboard && <LeaderboardModal />}
 
                 {gameOver && (
-                    <div className="text-xl font-bold text-red-500 text-center mt-4">
-                        Game Over! Final Score: {score}
-                        {!user && (
-                            <div className="text-sm text-gray-600 mt-2">Sign in to save your score to the leaderboard!</div>
-                        )}
+                    <div className="text-center mt-6">
+                        <div className="text-2xl font-bold text-red-500 mb-2">Game Over!</div>
+                        <div className="text-xl">Final Score: {score}</div>
+                        {!user && <div className="text-sm text-gray-600 mt-2">Sign in to save your score!</div>}
                     </div>
                 )}
 
-                <div className="text-gray-600 text-center mt-4">Use arrow keys or swipe to move tiles</div>
+                <div className="text-gray-600 text-center mt-6">
+                    <div className="font-medium mb-2">How to play:</div>
+                    <div className="text-sm">Use arrow keys or swipe to move tiles</div>
+                </div>
             </div>
         </div>
     );
